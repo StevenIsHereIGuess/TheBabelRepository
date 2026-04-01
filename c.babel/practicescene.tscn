@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3 uid="uid://dk12wkvgasge1"]
+
+[ext_resource type="PackedScene" uid="uid://d3graahklj6rn" path="res://PlayerChar.tscn" id="1_u0st0"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_jh45i"]
+size = Vector2(322, 23)
+
+[node name="Node2D" type="Node2D"]
+
+[node name="StaticBody2D" type="StaticBody2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D"]
+position = Vector2(233, 188)
+scale = Vector2(0.959596, 1.18182)
+shape = SubResource("RectangleShape2D_jh45i")
+
+[node name="SeñorBabel" parent="." instance=ExtResource("1_u0st0")]
+position = Vector2(233, 144)
