@@ -1,0 +1,59 @@
+[gd_scene load_steps=3 format=3 uid="uid://bqyc0bb3m7frm"]
+
+[ext_resource type="Script" uid="uid://co5khdlwvxtgk" path="res://main_menu.gd" id="1_06t4h"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_7vrkn"]
+font_size = 100
+font_color = Color(1, 0.827451, 0.137255, 1)
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_06t4h")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -136.0
+offset_top = -207.5
+offset_right = 136.0
+offset_bottom = -70.5
+grow_horizontal = 2
+grow_vertical = 2
+text = "Babel"
+label_settings = SubResource("LabelSettings_7vrkn")
+
+[node name="START_BUTTON" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -42.5
+offset_top = 59.0
+offset_right = 42.5
+offset_bottom = 119.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 30
+text = "START"
+
+[node name="QUIT_BUTTON" type="Button" parent="."]
+layout_mode = 0
+offset_left = 529.0
+offset_top = 462.0
+offset_right = 635.0
+offset_bottom = 521.0
+text = "QUIT"
+
+[connection signal="pressed" from="START_BUTTON" to="." method="_on_button_pressed"]
+[connection signal="pressed" from="QUIT_BUTTON" to="." method="_on_quit_button_pressed"]
