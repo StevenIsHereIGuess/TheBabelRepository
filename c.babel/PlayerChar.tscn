@@ -78,6 +78,48 @@ target_position = Vector2(6, 0)
 collision_mask = 2
 hit_from_inside = true
 
+[node name="Grapple" type="Node2D" parent="."]
+
+[node name="DetectionR" type="RayCast2D" parent="Grapple"]
+position = Vector2(11, 0)
+target_position = Vector2(70, 0)
+collision_mask = 2
+
+[node name="DetectionL" type="RayCast2D" parent="Grapple"]
+position = Vector2(-11, 0)
+target_position = Vector2(-70, 0)
+collision_mask = 2
+
+[node name="DetectionU" type="RayCast2D" parent="Grapple"]
+position = Vector2(0, -11)
+target_position = Vector2(0, -70)
+collision_mask = 2
+
+[node name="DetectionD" type="RayCast2D" parent="Grapple"]
+position = Vector2(0, 11)
+target_position = Vector2(0, 70)
+collision_mask = 2
+
+[node name="DetectionRD" type="RayCast2D" parent="Grapple"]
+position = Vector2(11, 11)
+target_position = Vector2(70, 70)
+collision_mask = 2
+
+[node name="DetectionLD" type="RayCast2D" parent="Grapple"]
+position = Vector2(-11, 11)
+target_position = Vector2(-70, 70)
+collision_mask = 2
+
+[node name="DetectionLU" type="RayCast2D" parent="Grapple"]
+position = Vector2(-11, -11)
+target_position = Vector2(-70, -70)
+collision_mask = 2
+
+[node name="DetectionRU" type="RayCast2D" parent="Grapple"]
+position = Vector2(11, -11)
+target_position = Vector2(70, -70)
+collision_mask = 2
+
 [node name="Camera2D" type="Camera2D" parent="."]
 scale = Vector2(1.04, 1)
 zoom = Vector2(1.5, 1.5)

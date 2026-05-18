@@ -3,6 +3,7 @@ extends CharacterBody2D
 const SPEED = 300.0
 const JUMP_VELOCITY = -400.0
 var GRAVITY = 1000
+var next_wall_climb := 0.0
 
 #	Jump Buffer
 var jump_buffer_tf = false
@@ -33,6 +34,11 @@ var touching_left_wall_bottom_half := false
 var touching_right_wall_all := false
 var touching_right_wall_bottom_half := false
 
+#The GOAT
+
+var start_action := false
+var timer_variable = 0
+
 enum PlayerState
 {
 	#Idle & Starting States
@@ -60,13 +66,35 @@ enum PlayerState
 	#Wall Mechanics
 	WALL_CLING_L,
 	WALL_CLING_R, #Its more like a wall slide
-	WALL_CLIMB, #Holding jump on a wall will have you climb for a short while
+	WALL_CLIMB_L,
+	WALL_CLIMB_L2,
+	WALL_CLIMB_L3,
+	WALL_CLIMB_R,
+	WALL_CLIMB_R2,
+	WALL_CLIMB_R3, #Holding jump on a wall will have you climb for a short while
 	WALL_JUMP_L,
 	WALL_JUMP_R, #Pressing jump for 
-	VAULT, #Don't worry abt these for rn, I'll get to it
-	MANTLE, #Same goes for this one
+	VAULT_L,
+	VAULT_R, #Don't worry abt these for rn, I'll get to it
+	MANTLE_L,
+	MANTLE_R, #Same goes for this one
 	SWING, #Swing on monkey bars or other objects
 	ROLL, #Cancel fall damage
+	
+	#Grappling
+	GRAPPLE_START,
+	GRAPPLE_DETECT_R,
+	GRAPPLE_DETECT_L,
+	GRAPPLE_DETECT_U,
+	GRAPPLE_DETECT_D,
+	GRAPPLE_DETECT_RD,
+	GRAPPLE_DETECT_LD,
+	GRAPPLE_DETECT_LU,
+	GRAPPLE_DETECT_RU,
+	GRAPPLE_ZIP,
+	GRAPPLE_SWING,
+	GRAPPLE_MISS,
+	
 }
 
 var _state: PlayerState = PlayerState.IDLE
@@ -130,16 +158,50 @@ func state_runner(delta): #Grabs the function for the current state
 			wall_cling_state_l(delta)
 		PlayerState.WALL_CLING_R:
 			wall_cling_state_r(delta)
-		PlayerState.WALL_CLIMB:
-			pass
+		PlayerState.WALL_CLIMB_L:
+			wall_climb_state_l1(delta)
+		PlayerState.WALL_CLIMB_L2:
+			wall_climb_state_l2(delta)
+		PlayerState.WALL_CLIMB_L3:
+			wall_climb_state_l3(delta)
+		PlayerState.WALL_CLIMB_R:
+			wall_climb_state_r1(delta)
+		PlayerState.WALL_CLIMB_R2:
+			wall_climb_state_r2(delta)
+		PlayerState.WALL_CLIMB_R3:
+			wall_climb_state_r3(delta)
 		PlayerState.WALL_JUMP_L:
 			wall_jump_state_l(delta)
 		PlayerState.WALL_JUMP_R:
 			wall_jump_state_r(delta)
-		PlayerState.VAULT:
-			pass
-		PlayerState.MANTLE:
-			pass
+		PlayerState.VAULT_L:
+			vault_state_l(delta)
+		PlayerState.VAULT_R:
+			vault_state_r(delta)
+		PlayerState.MANTLE_L:
+			mantle_state_l(delta)
+		PlayerState.MANTLE_R:
+			mantle_state_r(delta)
+		PlayerState.GRAPPLE_START:
+			grapple_start_state(delta)
+		PlayerState.GRAPPLE_DETECT_R:
+			grapple_detection_r(delta)
+		PlayerState.GRAPPLE_DETECT_L:
+			grapple_detection_l(delta)
+		PlayerState.GRAPPLE_DETECT_U:
+			grapple_detection_u(delta)
+		PlayerState.GRAPPLE_DETECT_D:
+			grapple_detection_d(delta)
+		PlayerState.GRAPPLE_DETECT_RD:
+			grapple_detection_rd(delta)
+		PlayerState.GRAPPLE_DETECT_LD:
+			grapple_detection_ld(delta)
+		PlayerState.GRAPPLE_DETECT_LU:
+			grapple_detection_lu(delta)
+		PlayerState.GRAPPLE_DETECT_RU:
+			grapple_detection_ru(delta)
+		PlayerState.GRAPPLE_ZIP:
+			grapple_zip_state(delta)
 		
 	
 
@@ -186,12 +248,20 @@ func set_state(new_state: PlayerState) -> void:
 			print("WALL JUMP")
 		PlayerState.WALL_JUMP_L:
 			print("WALL JUMP")
-		PlayerState.WALL_CLIMB:
+		PlayerState.WALL_CLIMB_L:
 			print("WALL CLIMB")
-		PlayerState.VAULT:
+		PlayerState.WALL_CLIMB_R:
+			print("WALL CLIMB")
+		PlayerState.VAULT_L:
 			print("VAULT")
-		PlayerState.MANTLE:
+		PlayerState.VAULT_R:
+			print("VAULT")
+		PlayerState.MANTLE_L:
 			print("MANTLE")
+		PlayerState.MANTLE_R:
+			print("MANTLE")
+		PlayerState.GRAPPLE_ZIP:
+			print("GRAPPLE")
 		
 	
 
@@ -204,6 +274,7 @@ func decay_speed():
 		elif (current_timer >= DECAY_TIMER):
 			current_timer = 0
 			record_speed -= 7
+		
 	
 
 func speed_peak():
@@ -421,6 +492,8 @@ func jump_state(delta):
 		set_state(PlayerState.WALL_CLING_R)
 	elif touching_left_wall_all == true:
 		set_state(PlayerState.WALL_CLING_L)
+	elif Input.is_action_pressed("Grapple"):
+		set_state(PlayerState.GRAPPLE_START)
 	
 
 func fall_state(delta):
@@ -435,6 +508,8 @@ func fall_state(delta):
 		set_state(PlayerState.WALL_CLING_L)
 	elif is_on_floor():
 		set_state(PlayerState.IDLE)
+	elif Input.is_action_just_pressed("Grapple"):
+		set_state(PlayerState.GRAPPLE_START)
 	elif jump_buffer_tf == true:
 		jump_buffer_thing()
 		return 
@@ -494,8 +569,10 @@ func wall_cling_state_r(delta):
 		GRAVITY = 1000
 		set_state(PlayerState.WALL_JUMP_R)
 	elif Input.is_action_just_pressed("Jump") and Input.is_action_pressed("ui_up"):
-		set_state(PlayerState.WALL_CLIMB)
 		GRAVITY = 1000
+		start_action = true
+		set_state(PlayerState.WALL_CLIMB_R)
+		
 
 func wall_cling_state_l(delta):
 	
@@ -516,12 +593,148 @@ func wall_cling_state_l(delta):
 		velocity.y = -400
 		set_state(PlayerState.WALL_JUMP_L)
 	elif Input.is_action_just_pressed("Jump") and Input.is_action_pressed("ui_up"):
-		set_state(PlayerState.WALL_CLIMB)
 		GRAVITY = 1000
+		start_action = true
+		set_state(PlayerState.WALL_CLIMB_L)
+		
 	
 
-func wall_climb_state(delta):
-	pass
+func wall_climb_state_l1(delta):
+	velocity.x = 0
+	
+	if start_action == true:
+		velocity.y = -500
+		start_action = false
+	
+	if touching_left_wall_all:
+		if (next_wall_climb < 0.5):
+			next_wall_climb += get_process_delta_time()
+		elif (next_wall_climb >= 0.5):
+			next_wall_climb = 0
+			start_action = true
+			set_state(PlayerState.WALL_CLIMB_L2)
+	elif touching_left_wall_bottom_half:
+		set_state(PlayerState.VAULT_L)
+	elif !touching_left_wall_all and !touching_left_wall_bottom_half:
+		set_state(PlayerState.FALL)
+
+func wall_climb_state_l2(delta):
+	velocity.x = 0
+	
+	if start_action == true:
+		velocity.y = -500
+		start_action = false
+	
+	if touching_left_wall_all:
+		if (next_wall_climb < 0.5):
+			next_wall_climb += get_process_delta_time()
+		elif (next_wall_climb >= 0.5):
+			next_wall_climb = 0
+			start_action = true
+			set_state(PlayerState.WALL_CLIMB_L3)
+	elif touching_left_wall_bottom_half:
+		set_state(PlayerState.VAULT_L)
+	elif !touching_left_wall_all and !touching_left_wall_bottom_half:
+		set_state(PlayerState.FALL)
+
+func wall_climb_state_l3(delta):
+	velocity.x = 0
+	
+	if start_action == true:
+		velocity.y = -500
+		start_action = false
+	
+	if touching_left_wall_all:
+		if (next_wall_climb < 0.5):
+			next_wall_climb += get_process_delta_time()
+		elif (next_wall_climb >= 0.5):
+			next_wall_climb = 0
+			start_action = true
+			set_state(PlayerState.FALL)
+	elif touching_left_wall_bottom_half:
+		set_state(PlayerState.VAULT_L)
+	elif !touching_left_wall_all and !touching_left_wall_bottom_half:
+		set_state(PlayerState.FALL)
+
+func wall_climb_state_r1(delta):
+	velocity.x = 0
+	
+	if start_action == true:
+		velocity.y = -500
+		start_action = false
+	
+	if touching_right_wall_all:
+		if (next_wall_climb < 0.5):
+			next_wall_climb += get_process_delta_time()
+		elif (next_wall_climb >= 0.5):
+			next_wall_climb = 0
+			start_action = true
+			set_state(PlayerState.WALL_CLIMB_R2)
+	elif touching_right_wall_bottom_half:
+		set_state(PlayerState.VAULT_R)
+	elif !touching_right_wall_all and !touching_right_wall_bottom_half:
+		set_state(PlayerState.FALL)
+
+func wall_climb_state_r2(delta):
+	velocity.x = 0
+	
+	if start_action == true:
+		velocity.y = -500
+		start_action = false
+	
+	if touching_right_wall_all:
+		if (next_wall_climb < 0.5):
+			next_wall_climb += get_process_delta_time()
+		elif (next_wall_climb >= 0.5):
+			next_wall_climb = 0
+			start_action = true
+			set_state(PlayerState.WALL_CLIMB_R3)
+	elif touching_right_wall_bottom_half:
+		set_state(PlayerState.VAULT_R)
+	elif !touching_right_wall_all and !touching_right_wall_bottom_half:
+		set_state(PlayerState.FALL)
+
+func wall_climb_state_r3(delta):
+	velocity.x = 0
+	
+	if start_action == true:
+		velocity.y = -500
+		start_action = false
+	
+	if touching_right_wall_all:
+		if (next_wall_climb < 0.5):
+			next_wall_climb += get_process_delta_time()
+		elif (next_wall_climb >= 0.5):
+			next_wall_climb = 0
+			start_action = true
+			set_state(PlayerState.FALL)
+	elif touching_right_wall_bottom_half:
+		set_state(PlayerState.FALL)
+	elif !touching_right_wall_all and !touching_right_wall_bottom_half:
+		set_state(PlayerState.FALL)
+
+func wall_climb_state1(delta):
+	velocity.y += -400
+	velocity.x = 0
+	
+	if is_on_floor():
+		set_state(PlayerState.IDLE)
+	if !Input.is_action_pressed("Jump"):
+		set_state(PlayerState.FALL)
+	elif touching_left_wall_bottom_half:
+		set_state(PlayerState.VAULT_L)
+	elif touching_right_wall_bottom_half:
+		set_state(PlayerState.VAULT_R)
+	elif Input.is_action_just_pressed("Jump") and touching_left_wall_all:
+		set_state(PlayerState.WALL_JUMP_L)
+	elif Input.is_action_just_pressed("Jump") and touching_right_wall_all:
+		set_state(PlayerState.WALL_JUMP_R)
+	elif !Input.is_action_pressed("ui_up"):
+		set_state(PlayerState.FALL)
+	elif Input.is_action_pressed("ui_up"):
+		pass
+		#velocity.y = -400
+	
 
 func wall_jump_state_r(delta):
 	var direction = Input.get_axis("ui_left", "ui_right")
@@ -529,7 +742,11 @@ func wall_jump_state_r(delta):
 	velocity.x += direction * 20
 	velocity.x = clamp(velocity.x, -SPEED, SPEED)
 	
-	if is_on_floor():
+	if touching_right_wall_all == true:
+		set_state(PlayerState.WALL_CLING_R)
+	elif touching_left_wall_all == true:
+		set_state(PlayerState.WALL_CLING_L)
+	elif is_on_floor():
 		set_state(PlayerState.IDLE)
 	elif velocity.y == 0 and !is_on_floor():
 		set_state(PlayerState.FALL)
@@ -540,29 +757,160 @@ func wall_jump_state_l(delta):
 	velocity.x += direction * 20
 	velocity.x = clamp(velocity.x, -SPEED, SPEED)
 	
-	if is_on_floor():
+	if touching_right_wall_all == true:
+		set_state(PlayerState.WALL_CLING_R)
+	elif touching_left_wall_all == true:
+		set_state(PlayerState.WALL_CLING_L)
+	elif is_on_floor():
 		set_state(PlayerState.IDLE)
 	elif velocity.y == 0 and !is_on_floor():
 		set_state(PlayerState.FALL)
+	
 
 #	Vaulting & Mantling
 
-func vault_state(delta):
+func vault_state_l(delta):
 	pass
 
-func mantle_state(delta):
+func vault_state_r(delta):
 	pass
 
-#	Dropping/Ground Pound
+func mantle_state_l(delta):
+	pass
 
-
+func mantle_state_r(delta):
+	pass
 
 #	Grappling Hook
 
+func grapple_start_state(delta):
+	var right_pressed = Input.is_action_pressed("ui_right")
+	var left_pressed = Input.is_action_pressed("ui_left")
+	var up_pressed = Input.is_action_pressed("ui_up")
+	var down_pressed = Input.is_action_pressed("ui_down")
+	
+	
+	if right_pressed and !left_pressed and !up_pressed and !down_pressed:
+		set_state(PlayerState.GRAPPLE_DETECT_R)
+	elif left_pressed and !right_pressed and !up_pressed and !down_pressed:
+		set_state(PlayerState.GRAPPLE_DETECT_L)
+	elif up_pressed and !right_pressed and !left_pressed and !down_pressed:
+		set_state(PlayerState.GRAPPLE_DETECT_U)
+	elif down_pressed and !right_pressed and !left_pressed and !up_pressed:
+		set_state(PlayerState.GRAPPLE_DETECT_D)
+	elif right_pressed and up_pressed and !left_pressed and !down_pressed:
+		set_state(PlayerState.GRAPPLE_DETECT_RU)
+	elif right_pressed and down_pressed and !left_pressed and !up_pressed:
+		set_state(PlayerState.GRAPPLE_DETECT_RD)
+	elif left_pressed and up_pressed and !right_pressed and !down_pressed:
+		set_state(PlayerState.GRAPPLE_DETECT_LU)
+	elif left_pressed and down_pressed and !up_pressed and !right_pressed:
+		set_state(PlayerState.GRAPPLE_DETECT_LD)
 
+func grapple_detection_r(delta):
+	$Grapple/DetectionR.enabled = true
+	
+	if $Grapple/DetectionR.is_colliding():
+		velocity.x = 500
+		velocity.y = 0
+		set_state(PlayerState.GRAPPLE_ZIP)
+	elif !$Grapple/DetectionR.is_colliding():
+		set_state(PlayerState.GRAPPLE_MISS)
+
+func grapple_detection_l(delta):
+	$Grapple/DetectionL.enabled = true
+	
+	if $Grapple/DetectionL.is_colliding():
+		velocity.x = -500
+		velocity.y = 0
+		set_state(PlayerState.GRAPPLE_ZIP)
+	elif !$Grapple/DetectionL.is_colliding():
+		set_state(PlayerState.GRAPPLE_MISS)
+
+func grapple_detection_u(delta):
+	$Grapple/DetectionU.enabled = true
+	
+	if $Grapple/DetectionU.is_colliding():
+		velocity.x = 0
+		velocity.y = -500
+		set_state(PlayerState.GRAPPLE_ZIP)
+	elif !$Grapple/DetectionU.is_colliding():
+		set_state(PlayerState.GRAPPLE_MISS)
+
+func grapple_detection_d(delta):
+	$Grapple/DetectionD.enabled = true
+	
+	if $Grapple/DetectionD.is_colliding():
+		velocity.x = 0
+		velocity.y = 500
+		set_state(PlayerState.GRAPPLE_ZIP)
+	elif !$Grapple/DetectionD.is_colliding():
+		set_state(PlayerState.GRAPPLE_MISS)
+
+func grapple_detection_rd(delta):
+	$Grapple/DetectionRD.enabled = true
+	
+	if $Grapple/DetectionRD.is_colliding():
+		velocity.x = 500
+		velocity.y = 500
+		set_state(PlayerState.GRAPPLE_ZIP)
+	elif !$Grapple/DetectionRD.is_colliding():
+		set_state(PlayerState.GRAPPLE_MISS)
+
+func grapple_detection_ru(delta):
+	$Grapple/DetectionRU.enabled = true
+	
+	if $Grapple/DetectionRU.is_colliding():
+		velocity.x = 500
+		velocity.y = -500
+		set_state(PlayerState.GRAPPLE_ZIP)
+	elif !$Grapple/DetectionRU.is_colliding():
+		set_state(PlayerState.GRAPPLE_MISS)
+
+func grapple_detection_ld(delta):
+	$Grapple/DetectionLD.enabled = true
+	
+	if $Grapple/DetectionLD.is_colliding():
+		velocity.x = -500
+		velocity.y = 500
+		set_state(PlayerState.GRAPPLE_ZIP)
+	elif !$Grapple/DetectionLD.is_colliding():
+		$Grapple/DetectionLD.enabled = false
+
+func grapple_detection_lu(delta):
+	$Grapple/DetectionLU.enabled = true
+	
+	if $Grapple/DetectionLU.is_colliding():
+		velocity.x = -500
+		velocity.y = -500
+		set_state(PlayerState.GRAPPLE_ZIP)
+	elif !$Grapple/DetectionLU.is_colliding():
+		$Grapple/DetectionLU.enabled = false
+	
+
+func grapple_zip_state(delta):
+	velocity.x = velocity.x
+	velocity.y = velocity.y
+	
+	if (timer_variable < 0.5):
+		timer_variable += get_process_delta_time()
+	elif (timer_variable >= 0.5):
+		timer_variable = 0
+		GRAVITY = 1000
+		set_state(PlayerState.FALL)
+	
+	if touching_left_wall_all:
+		GRAVITY = 1000
+		set_state(PlayerState.WALL_CLING_L)
+	if touching_right_wall_all:
+		GRAVITY = 1000
+		set_state(PlayerState.WALL_CLING_R)
+	
+	
+	GRAVITY = 0
 
 #	Attacking & Health
 
 
 
-#	Slope Physics
+#	Slope Physics (maybe)
